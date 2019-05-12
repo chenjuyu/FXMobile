@@ -1,0 +1,990 @@
+Index: app/src/main/java/com/fuxi/wxutil/Weex.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/Weex.java	(date 1557646176616)
++++ app/src/main/java/com/fuxi/wxutil/Weex.java	(date 1557646176616)
+@@ -159,6 +159,36 @@
+ 
+     }
+ 
++    public static String getSingleRealUrl(String url)
++    {
+ 
++        if(url.startsWith("./"))
++        {
++            url=url.substring(2);
++        }
++        if(url.startsWith("/"))
++        {
++            url=url.substring(1);
++        }
++        if(url.contains("/./"))
++        {
++            url=url.replace("/./","/");
++        }
++
++        String q[]=url.split("\\.\\.\\/");
++        String x[]= q[0].split("\\/");
++        if(q.length==1)
++            return q[0];
++        String p="";
++        if(x.length>=q.length-1)
++        {
++            for(int i=0;i<x.length-q.length+1;i++)
++            {
++                p+=x[i]+"/";
++            }
++        }
++        p+=q[q.length-1];
++        return p;
++    }
+ 
+ }
+Index: app/src/main/java/com/fuxi/wxutil/Const.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/Const.java	(date 1557646176491)
++++ app/src/main/java/com/fuxi/wxutil/Const.java	(date 1557646176491)
+@@ -0,0 +1,7 @@
++package com.fuxi.wxutil;
++
++public class Const {
++    public static final  String DOWNLOAD_APK_PATH="DOWNLOAD_APK_PATH";
++    public static final  String PREFIX_SDCARD="sdcard:";
++    public static final  String PREFIX_BASE64="base64===";
++}
+Index: app/src/main/java/com/fuxi/wxutil/Picture.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/Picture.java	(date 1557646176600)
++++ app/src/main/java/com/fuxi/wxutil/Picture.java	(date 1557646176600)
+@@ -0,0 +1,254 @@
++package com.fuxi.wxutil;
++
++import android.content.ContentResolver;
++import android.content.Context;
++import android.database.Cursor;
++import android.graphics.Bitmap;
++import android.graphics.BitmapFactory;
++import android.net.Uri;
++import android.provider.MediaStore;
++import android.util.Log;
++
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.regex.Matcher;
++import java.util.regex.Pattern;
++
++public class Picture {
++
++    /**
++     * 根据url获取图片名称
++     * @param url
++     * @param type jpg,png.....
++     * @return
++     */
++    public   String getPicNameFromUrl(String url,String type)
++    {
++//		  Log.i("url", url);
++        Pattern p=Pattern.compile("[^\\/]*"+type);
++        Matcher m = p.matcher(url);
++        if(m.find())
++            return m.group();
++        else
++            return null;
++    }
++
++    /**
++     * 获取jpg或者jpeg类型的图片名称
++     * @param url
++     * @return
++     */
++    public   String getPicName(String url)
++    {
++
++        String s= getPicNameFromUrl(url,"jpg");
++        if(s!=null)
++            return s;
++        s= getPicNameFromUrl(url,"jpeg");
++        if(s!=null)
++            return s;
++        s= getPicNameFromUrl(url,"png");
++        return s;
++    }
++
++    /**
++     * 根据名称获取图片类型
++     * @param picname
++     * @return
++     */
++    public String getPicType(String picname)
++    {
++        String p[]= picname.split(".");
++        if(p.length>1)
++        {
++            return p[1];
++        }
++        else
++        {
++
++            Log.i("Picture.getPicType", picname+"锟斤拷锟斤拷锟斤拷效锟斤拷图片锟斤拷锟�");
++            return null;
++        }
++
++    }
++
++
++
++
++    /**
++     * 将图片存到sd上
++     * @param path
++     * @param b
++     * @return
++     */
++    public static boolean saveImageToSDCard(String path,Bitmap b)
++    {
++
++
++
++//    	   if(!SDCard.IsSDCardExist())
++//    	   {
++//    		   return false;
++//    	   }
++        File f = new File(path) ;
++        try {
++            if(!f.exists())
++            {
++                if(!f.createNewFile())
++                {
++                    return false;
++                }
++            }
++
++        } catch (IOException e1) {
++            // TODO Auto-generated catch block
++            e1.printStackTrace();
++        }
++        try {
++            FileOutputStream out = new FileOutputStream(f);
++            if(b!=null)
++                b.compress(Bitmap.CompressFormat.PNG, 100, out);
++            out.flush();
++            out.close();
++            return true;
++        } catch (IOException e) {
++            e.printStackTrace();
++            return false;
++        }
++        finally
++        {
++
++        }
++
++
++    }
++
++    /**
++     * 从sd上获取图片
++     * @param path
++     * @return
++     */
++    public  static Bitmap getBitmap(String path)
++    {
++        if(!SDCard.IsFileExist(path))
++        {
++            return null;
++        }
++        BitmapFactory.Options mOptions = new BitmapFactory.Options();
++        mOptions.inSampleSize= mOptions.outWidth / 200;
++        return	BitmapFactory.decodeFile(path,mOptions);
++
++    }
++
++
++    public  static String getSysPath(final Context context, final Uri uri)
++    {
++        if ( null == uri ) return null;
++        final String scheme = uri.getScheme();
++        String data = null;
++        if ( scheme == null )
++            data = uri.getPath();
++        else if ( ContentResolver.SCHEME_FILE.equals( scheme ) ) {
++            data = uri.getPath();
++        } else if ( ContentResolver.SCHEME_CONTENT.equals( scheme ) ) {
++            Cursor cursor = context.getContentResolver().query( uri, new String[] { MediaStore.Images.ImageColumns.DATA }, null, null, null );
++            if ( null != cursor ) {
++                if ( cursor.moveToFirst() ) {
++                    int index = cursor.getColumnIndex( MediaStore.Images.ImageColumns.DATA );
++                    if ( index > -1 ) {
++                        data = cursor.getString( index );
++                    }
++                }
++                cursor.close();
++            }
++        }
++        return data;
++    }
++
++
++    public static InputStream Bitmap2InputStream(Bitmap bm) {
++        if(bm==null)
++            return null;
++        ByteArrayOutputStream baos = new ByteArrayOutputStream();
++        bm.compress(Bitmap.CompressFormat.JPEG, 100, baos);
++        InputStream is = new ByteArrayInputStream(baos.toByteArray());
++        return is;
++    }
++
++
++    public static byte[] bitmapToByte(Bitmap bitmap)
++    {
++        ByteArrayOutputStream baos = new ByteArrayOutputStream();
++        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
++        byte[] datas = baos.toByteArray();
++        return datas;
++    }
++
++
++
++    public  Bitmap compressImageBySize(Bitmap image,long size) {
++
++        ByteArrayOutputStream baos = new ByteArrayOutputStream();
++        image.compress(Bitmap.CompressFormat.JPEG, 100, baos);//质量压缩方法，这里100表示不压缩，把压缩后的数据存放到baos中
++        int options = 100;
++        while ( baos.toByteArray().length / 1024>size) {  //循环判断如果压缩后图片是否大于100kb,大于继续压缩
++            baos.reset();//重置baos即清空baos
++            image.compress(Bitmap.CompressFormat.JPEG, options, baos);//这里压缩options%，把压缩后的数据存放到baos中
++            options -= 10;//每次都减少10
++        }
++        ByteArrayInputStream isBm = new ByteArrayInputStream(baos.toByteArray());//把压缩后的数据baos存放到ByteArrayInputStream中
++        Bitmap bitmap = BitmapFactory.decodeStream(isBm, null, null);//把ByteArrayInputStream数据生成图片
++        return bitmap;
++    }
++
++
++    public Bitmap compressImage(Bitmap image,float maxw,float maxheight,long size) {
++
++        ByteArrayOutputStream baos = new ByteArrayOutputStream();
++        image.compress(Bitmap.CompressFormat.JPEG, 100, baos);
++        if( baos.toByteArray().length / 1024>1024) {//判断如果图片大于1M,进行压缩避免在生成图片（BitmapFactory.decodeStream）时溢出
++            baos.reset();//重置baos即清空baos
++            image.compress(Bitmap.CompressFormat.JPEG, 50, baos);//这里压缩50%，把压缩后的数据存放到baos中
++        }
++        ByteArrayInputStream isBm = new ByteArrayInputStream(baos.toByteArray());
++        BitmapFactory.Options newOpts = new BitmapFactory.Options();
++        //开始读入图片，此时把options.inJustDecodeBounds 设回true了
++        newOpts.inJustDecodeBounds = true;
++        Bitmap bitmap = BitmapFactory.decodeStream(isBm, null, newOpts);
++        newOpts.inJustDecodeBounds = false;
++        int w = newOpts.outWidth;
++        int h = newOpts.outHeight;
++        //现在主流手机比较多是800*480分辨率，所以高和宽我们设置为
++        float hh = maxw;//这里设置高度为800f
++        float ww = maxheight;//这里设置宽度为480f
++        //缩放比。由于是固定比例缩放，只用高或者宽其中一个数据进行计算即可
++        int be = 1;//be=1表示不缩放
++        if (w > h && w > ww) {//如果宽度大的话根据宽度固定大小缩放
++            be = (int) (newOpts.outWidth / ww);
++        } else if (w < h && h > hh) {//如果高度高的话根据宽度固定大小缩放
++            be = (int) (newOpts.outHeight / hh);
++        }
++        if (be <= 0)
++            be = 1;
++        newOpts.inSampleSize = be;//设置缩放比例
++        //重新读入图片，注意此时已经把options.inJustDecodeBounds 设回false了
++        isBm = new ByteArrayInputStream(baos.toByteArray());
++        bitmap = BitmapFactory.decodeStream(isBm, null, newOpts);
++        return compressImageBySize(bitmap,size);//压缩好比例大小后再进行质量压缩
++    }
++
++
++
++    public static int getImageHeight(int acw,int ach,int w)
++    {
++        if(w==0)
++            return 0;
++        ach*=(float)acw/(float)w;
++        return ach;
++
++    }
++}
+Index: app/src/main/java/com/fuxi/wxutil/BlurTool.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/BlurTool.java	(date 1557646176460)
++++ app/src/main/java/com/fuxi/wxutil/BlurTool.java	(date 1557646176460)
+@@ -0,0 +1,304 @@
++package com.fuxi.wxutil;
++
++import android.graphics.Bitmap;
++import android.support.annotation.NonNull;
++import android.support.annotation.Nullable;
++
++import com.taobao.weex.utils.WXLogUtils;
++
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.ThreadFactory;
++
++public class BlurTool {
++
++    public interface OnBlurCompleteListener {
++        /**
++         * blur complete event.(Notice:in sub thread)
++         *
++         * @param bitmap the blurred bitmap
++         * */
++        void onBlurComplete(@NonNull Bitmap bitmap);
++    }
++
++    private static ExecutorService sExecutorService = Executors.newCachedThreadPool(new ThreadFactory() {
++        @Override
++        public Thread newThread(Runnable r) {
++            return new Thread(r,"wx_blur_thread");
++        }
++    });
++
++    private static final String TAG = "BlurTool";
++
++    /**
++     * radius in [0,10]
++     * */
++    @NonNull
++    @SuppressWarnings("unused")
++    public static Bitmap blur(@NonNull Bitmap originalImage, int radius) {
++        long start = System.currentTimeMillis();
++        radius = Math.min(10, Math.max(0,radius));//[0,10]
++        if(radius == 0) {
++            return originalImage;
++        }
++        int width = originalImage.getWidth();
++        int height = originalImage.getHeight();
++
++        if(width <= 0 || height <= 0) {
++            return originalImage;
++        }
++
++        double sampling = calculateSampling(radius);
++        int retryTimes = 3;
++        Bitmap sampledImage = Bitmap.createScaledBitmap(originalImage,(int)(sampling*width),(int)(sampling*height),true);
++        for(int i = 0; i < retryTimes; i++) {
++            try {
++                if(radius == 0) {
++                    return originalImage;
++                }
++                double s = calculateSampling(radius);
++                if(s != sampling) {
++                    sampling = s;
++                    sampledImage = Bitmap.createScaledBitmap(originalImage,(int)(sampling*width),(int)(sampling*height),true);
++                }
++
++                Bitmap result = stackBlur(sampledImage,radius);
++                WXLogUtils.d(TAG, "elapsed time on blurring image(radius:"+ radius + ",sampling: " + sampling + "): " + (System.currentTimeMillis() - start) + "ms");
++                return result;
++            }catch (Exception e) {
++                WXLogUtils.e(TAG, "thrown exception when blurred image(times = " + i + "),"+ e.getMessage());
++                radius -= 1;
++                radius = Math.max(0,radius);
++            }
++        }
++        WXLogUtils.d(TAG, "elapsed time on blurring image(radius:"+ radius + ",sampling: " + sampling + "): " + (System.currentTimeMillis() - start) + "ms");
++        return originalImage;
++    }
++
++    private static double calculateSampling(int radius){
++        double sampling;
++        if(radius <= 3) {
++            sampling = 1/(double)2;
++        }else if(radius <= 8) {
++            sampling = 1/(double)4;
++        }else {
++            sampling = 1/(double)8;
++        }
++
++        return sampling;
++    }
++
++    @SuppressWarnings("unused")
++    public static void asyncBlur(@NonNull final Bitmap originalImage, final int radius, @Nullable final OnBlurCompleteListener listener) {
++        sExecutorService.execute(new Runnable() {
++            @Override
++            public void run() {
++                if(listener != null) {
++                    listener.onBlurComplete(blur(originalImage,radius));
++                }
++            }
++        });
++    }
++
++    private static Bitmap stackBlur(Bitmap sentBitmap, int radius) {
++        // Stack Blur Algorithm by Mario Klingemann <mario@quasimondo.com>
++        Bitmap bitmap = sentBitmap.copy(sentBitmap.getConfig(), true);
++
++        if (radius < 1) {
++            return (null);
++        }
++
++        int w = bitmap.getWidth();
++        int h = bitmap.getHeight();
++
++        int[] pix = new int[w * h];
++        bitmap.getPixels(pix, 0, w, 0, 0, w, h);
++
++        int wm = w - 1;
++        int hm = h - 1;
++        int wh = w * h;
++        int div = radius + radius + 1;
++
++        int r[] = new int[wh];
++        int g[] = new int[wh];
++        int b[] = new int[wh];
++        int rsum, gsum, bsum, x, y, i, p, yp, yi, yw;
++        int vmin[] = new int[Math.max(w, h)];
++
++        int divsum = (div + 1) >> 1;
++        divsum *= divsum;
++        int dv[] = new int[256 * divsum];
++        for (i = 0; i < 256 * divsum; i++) {
++            dv[i] = (i / divsum);
++        }
++
++        yw = yi = 0;
++
++        int[][] stack = new int[div][3];
++        int stackpointer;
++        int stackstart;
++        int[] sir;
++        int rbs;
++        int r1 = radius + 1;
++        int routsum, goutsum, boutsum;
++        int rinsum, ginsum, binsum;
++
++        for (y = 0; y < h; y++) {
++            rinsum = ginsum = binsum = routsum = goutsum = boutsum = rsum = gsum = bsum = 0;
++            for (i = -radius; i <= radius; i++) {
++                p = pix[yi + Math.min(wm, Math.max(i, 0))];
++                sir = stack[i + radius];
++                sir[0] = (p & 0xff0000) >> 16;
++                sir[1] = (p & 0x00ff00) >> 8;
++                sir[2] = (p & 0x0000ff);
++                rbs = r1 - Math.abs(i);
++                rsum += sir[0] * rbs;
++                gsum += sir[1] * rbs;
++                bsum += sir[2] * rbs;
++                if (i > 0) {
++                    rinsum += sir[0];
++                    ginsum += sir[1];
++                    binsum += sir[2];
++                } else {
++                    routsum += sir[0];
++                    goutsum += sir[1];
++                    boutsum += sir[2];
++                }
++            }
++            stackpointer = radius;
++
++            for (x = 0; x < w; x++) {
++
++                r[yi] = dv[rsum];
++                g[yi] = dv[gsum];
++                b[yi] = dv[bsum];
++
++                rsum -= routsum;
++                gsum -= goutsum;
++                bsum -= boutsum;
++
++                stackstart = stackpointer - radius + div;
++                sir = stack[stackstart % div];
++
++                routsum -= sir[0];
++                goutsum -= sir[1];
++                boutsum -= sir[2];
++
++                if (y == 0) {
++                    vmin[x] = Math.min(x + radius + 1, wm);
++                }
++                p = pix[yw + vmin[x]];
++
++                sir[0] = (p & 0xff0000) >> 16;
++                sir[1] = (p & 0x00ff00) >> 8;
++                sir[2] = (p & 0x0000ff);
++
++                rinsum += sir[0];
++                ginsum += sir[1];
++                binsum += sir[2];
++
++                rsum += rinsum;
++                gsum += ginsum;
++                bsum += binsum;
++
++                stackpointer = (stackpointer + 1) % div;
++                sir = stack[(stackpointer) % div];
++
++                routsum += sir[0];
++                goutsum += sir[1];
++                boutsum += sir[2];
++
++                rinsum -= sir[0];
++                ginsum -= sir[1];
++                binsum -= sir[2];
++
++                yi++;
++            }
++            yw += w;
++        }
++        for (x = 0; x < w; x++) {
++            rinsum = ginsum = binsum = routsum = goutsum = boutsum = rsum = gsum = bsum = 0;
++            yp = -radius * w;
++            for (i = -radius; i <= radius; i++) {
++                yi = Math.max(0, yp) + x;
++
++                sir = stack[i + radius];
++
++                sir[0] = r[yi];
++                sir[1] = g[yi];
++                sir[2] = b[yi];
++
++                rbs = r1 - Math.abs(i);
++
++                rsum += r[yi] * rbs;
++                gsum += g[yi] * rbs;
++                bsum += b[yi] * rbs;
++
++                if (i > 0) {
++                    rinsum += sir[0];
++                    ginsum += sir[1];
++                    binsum += sir[2];
++                } else {
++                    routsum += sir[0];
++                    goutsum += sir[1];
++                    boutsum += sir[2];
++                }
++
++                if (i < hm) {
++                    yp += w;
++                }
++            }
++            yi = x;
++            stackpointer = radius;
++            for (y = 0; y < h; y++) {
++                // Preserve alpha channel: ( 0xff000000 & pix[yi] )
++                pix[yi] = (0xff000000 & pix[yi]) | (dv[rsum] << 16) | (dv[gsum] << 8) | dv[bsum];
++
++                rsum -= routsum;
++                gsum -= goutsum;
++                bsum -= boutsum;
++
++                stackstart = stackpointer - radius + div;
++                sir = stack[stackstart % div];
++
++                routsum -= sir[0];
++                goutsum -= sir[1];
++                boutsum -= sir[2];
++
++                if (x == 0) {
++                    vmin[y] = Math.min(y + r1, hm) * w;
++                }
++                p = x + vmin[y];
++
++                sir[0] = r[p];
++                sir[1] = g[p];
++                sir[2] = b[p];
++
++                rinsum += sir[0];
++                ginsum += sir[1];
++                binsum += sir[2];
++
++                rsum += rinsum;
++                gsum += ginsum;
++                bsum += binsum;
++
++                stackpointer = (stackpointer + 1) % div;
++                sir = stack[stackpointer];
++
++                routsum += sir[0];
++                goutsum += sir[1];
++                boutsum += sir[2];
++
++                rinsum -= sir[0];
++                ginsum -= sir[1];
++                binsum -= sir[2];
++
++                yi += w;
++            }
++        }
++
++        bitmap.setPixels(pix, 0, w, 0, 0, w, h);
++
++        return (bitmap);
++    }
++}
+\ No newline at end of file
+Index: app/src/main/java/com/fuxi/wxutil/BlurTransformation.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/BlurTransformation.java	(date 1557646176476)
++++ app/src/main/java/com/fuxi/wxutil/BlurTransformation.java	(date 1557646176476)
+@@ -0,0 +1,35 @@
++package com.fuxi.wxutil;
++
++import android.graphics.Bitmap;
++
++import com.squareup.picasso.Transformation;
++
++public class BlurTransformation implements Transformation {
++
++    private int mRadius;
++
++    public BlurTransformation(int radius) {
++        mRadius = radius;
++    }
++
++    @Override public Bitmap transform(Bitmap source) {
++        if(mRadius <= 0) {
++            return source;
++        }
++        Bitmap bitmap;
++        try {
++            bitmap = BlurTool.blur(source, mRadius);
++        }catch (Exception e){
++            bitmap = source;
++        }
++        if(bitmap != source) {
++            source.recycle();
++        }
++        return bitmap;
++    }
++
++    @Override public String key() {
++        return "BlurTransformation(radius=" + mRadius + ")";
++    }
++}
++
+Index: app/src/main/java/com/fuxi/wxutil/PicassoImageAdapter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/PicassoImageAdapter.java	(date 1557646176585)
++++ app/src/main/java/com/fuxi/wxutil/PicassoImageAdapter.java	(date 1557646176585)
+@@ -0,0 +1,209 @@
++package com.fuxi.wxutil;
++
++import android.app.Activity;
++import android.graphics.Bitmap;
++import android.graphics.BitmapFactory;
++import com.fuxi.wxutil.Picture;
++import android.graphics.drawable.BitmapDrawable;
++import android.graphics.drawable.Drawable;
++import android.text.TextUtils;
++import android.util.Base64;
++import android.widget.ImageView;
++
++import com.bumptech.glide.Glide;
++import com.fuxi.activity.WXPageActivity;
++import com.fuxi.application.ECApplication;
++import com.squareup.picasso.Callback;
++import com.squareup.picasso.Picasso;
++import com.taobao.weex.WXEnvironment;
++import com.taobao.weex.adapter.IWXImgLoaderAdapter;
++import com.taobao.weex.common.WXImageStrategy;
++import com.taobao.weex.dom.WXImageQuality;
++
++import java.util.HashMap;
++
++import static com.fuxi.wxutil.Local.getBitmap;
++
++public class PicassoImageAdapter implements IWXImgLoaderAdapter {
++
++    static HashMap<String,Drawable> placeholders=new HashMap<>();
++
++    public PicassoImageAdapter() {
++    }
++    @Override
++    public void setImage(final String url, final ImageView view,
++                         final WXImageQuality quality, final WXImageStrategy strategy) {
++        if(view==null||view.getLayoutParams()==null){
++            return;
++        }
++        if (TextUtils.isEmpty(url)) {
++            view.setImageBitmap(null);
++            if(strategy==null||strategy.placeHolder==null)
++                return;
++        }
++        String temp = url;
++
++        if (view.getLayoutParams().width <= 0 || view.getLayoutParams().height <= 0) {
++            return;
++        }
++
++        if(view.getContext() instanceof WXPageActivity)
++        {
++            WXPageActivity a= (WXPageActivity)view.getContext();
++            temp=Weex.getRelativeUrl(url,a.mWXSDKInstance);
++        }
++        if(temp.startsWith("http"))
++        {
++            loadHttp(temp,view,quality,strategy);
++        }
++        else
++        {
++            loadLocal(temp,view,quality,strategy);
++        }
++
++    }
++
++    public  void loadLocal(String url,final ImageView view,
++                           WXImageQuality quality, final WXImageStrategy strategy) {
++        Drawable pladrawable = null;
++        if (!TextUtils.isEmpty(strategy.placeHolder)) {
++
++
++            if (placeholders.containsKey(strategy.placeHolder)) {
++                pladrawable = placeholders.get(strategy.placeHolder);
++            } else {
++                if (strategy.placeHolder != null) {
++//                  String placeholder=strategy.placeHolder.replace("root:",Weex.baseurl);
++                    WXPageActivity a = (WXPageActivity) view.getContext();
++                    String placeholder = Weex.getRelativeUrl(strategy.placeHolder, a.mWXSDKInstance);
++//                  Bitmap bmx= FileTool.loadAssetImage(placeholder,((Activity)view.getContext()).getApplicationContext());
++                    Bitmap bmx = getBitmap(((Activity) view.getContext()).getApplicationContext(), placeholder);
++                    pladrawable = new BitmapDrawable(bmx);
++                    placeholders.put(strategy.placeHolder, pladrawable);
++                }
++
++            }
++        }
++        view.setImageDrawable(pladrawable);
++        if (url.toLowerCase().contains(".gif")) {
++//          Glide.with((Activity)view.getContext()).load()
++            Bitmap bm = getBitmap(((Activity) view.getContext()).getApplicationContext(), url);
++
++
++            boolean exist = Local.isDiskExist(view.getContext());
++            if (exist) {
++                url = "file:///" + Local.getDiskBasePath(view.getContext()) + url;
++            } else {
++
++                url = "file:///android_asset/" + url;
++            }
++            Glide
++                    .with(ECApplication.getInstance())
++                    .asGif()
++                    .load(url)
++                    .into(view);
++
++            return;
++        }
++        Bitmap bm = getLocalBitmap(url);
++        if (bm != null)
++            view.setImageBitmap(bm);
++    }
++
++    public static Bitmap getLocalBitmap(String url){
++        if(url.startsWith(Const.PREFIX_SDCARD))
++        {
++            url=url.replace(Const.PREFIX_SDCARD,"");
++            Bitmap  bm= Picture.getBitmap(url);
++
++            return bm;
++        }
++        url=Weex.getSingleRealUrl(url);
++        Bitmap bm=null;
++        if(url.startsWith(Const.PREFIX_BASE64))
++        {
++            url=url.replace(Const.PREFIX_BASE64,"");
++            bm= PicassoImageAdapter.base64ToBitmap(url);
++        }
++        else
++        {
++            bm= FileTool.loadAssetImage(url,WXEnvironment.getApplication().getApplicationContext());
++        }
++        return bm;
++    }
++
++    public static Bitmap base64ToBitmap(String base64Data) {
++        byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
++        return BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
++    }
++
++    public  void loadHttp(final String url,final ImageView view,
++                          WXImageQuality quality, final WXImageStrategy strategy)
++    {
++        Drawable pladrawable=null;
++        if(!TextUtils.isEmpty(strategy.placeHolder)){
++
++
++            if(placeholders.containsKey(strategy.placeHolder))
++            {
++                pladrawable=placeholders.get(strategy.placeHolder);
++            }
++            else
++            {
++                if(strategy.placeHolder!=null)
++                {
++                    WXPageActivity a= (WXPageActivity)view.getContext();
++                    String  placeholder=Weex.getRelativeUrl(strategy.placeHolder,a.mWXSDKInstance);
++//          String placeholder=strategy.placeHolder.replace("root:",Weex.baseurl);
++                    placeholder=placeholder.replace(Weex.getBaseUrl(a.mWXSDKInstance),"app/");
++                    Bitmap bm= getBitmap(((Activity)view.getContext()).getApplicationContext(),placeholder);
++                    pladrawable =new BitmapDrawable(bm);
++                    placeholders.put(strategy.placeHolder,pladrawable);
++                }
++
++            }
++        }
++
++        if(url.toLowerCase().contains(".gif"))
++        {
++            Glide
++                    .with((Activity)view.getContext())
++
++                    .asGif()
++//                  .placeholder(pladrawable)
++                    .load(url)
++//                  .asGif()
++//                  .placeholder(pladrawable)
++//                  .diskCacheStrategy(DiskCacheStrategy.SOURCE)
++                    .into(view);
++
++            return;
++        }
++
++        Picasso.with(WXEnvironment.getApplication())
++                .load(url)
++                .placeholder(pladrawable)
++                .transform(new BlurTransformation(strategy.blurRadius))
++                .into(view, new Callback() {
++                    @Override
++                    public void onSuccess() {
++                        if(strategy.getImageListener()!=null){
++                            strategy.getImageListener().onImageFinish(url,view,true,null);
++                        }
++
++
++                    }
++
++                    @Override
++                    public void onError() {
++                        if(strategy.getImageListener()!=null){
++                            strategy.getImageListener().onImageFinish(url,view,false,null);
++                        }
++                    }
++                });
++
++
++
++    }
++
++}
+Index: app/src/main/java/com/fuxi/wxutil/Local.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/Local.java	(date 1557646176569)
++++ app/src/main/java/com/fuxi/wxutil/Local.java	(date 1557646176569)
+@@ -1,12 +1,18 @@
+ package com.fuxi.wxutil;
+ 
+ import android.content.Context;
++import android.graphics.Bitmap;
++
+ import java.io.File;
+ 
+ import static com.fuxi.wxutil.SDCard.getBasePath;
+ 
+ public class Local {
+ 
++    public static String getDiskBasePath(Context context){
++        return  context.getExternalFilesDir("Caches")+"/";
++    }
++
+     public static String getString(Context c, String path)
+     {
+         return  getLocalManager(c).getString(c,path);
+@@ -31,4 +37,9 @@
+         File f=new File(path);
+         return f.exists();
+     }
++
++    public static Bitmap getBitmap(Context c, String path)
++    {
++        return  getLocalManager(c).getBitmap(c,path);
++    }
+ }
+Index: app/src/main/java/com/fuxi/wxutil/DrawableLoader.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/DrawableLoader.java	(date 1557646176522)
++++ app/src/main/java/com/fuxi/wxutil/DrawableLoader.java	(date 1557646176522)
+@@ -10,7 +10,9 @@
+ import com.bumptech.glide.request.Request;
+ import com.bumptech.glide.request.target.SimpleTarget;
+ import com.bumptech.glide.request.target.SizeReadyCallback;
++import com.bumptech.glide.request.transition.Transition;
+ import com.fuxi.activity.WXPageActivity;
++import com.fuxi.application.ECApplication;
+ import com.taobao.weex.WXEnvironment;
+ import com.taobao.weex.adapter.DrawableStrategy;
+ import com.taobao.weex.adapter.IDrawableLoader;
+@@ -84,7 +86,7 @@
+                 url= "file:///android_asset/"+url;
+             }
+             Glide
+-                    .with(WeexApplication.getInstance())
++                    .with(ECApplication.getInstance())
+                     .asGif()
+                     .load( url)
+                     .into(new com.bumptech.glide.request.target.Target<GifDrawable>() {
+Index: app/src/main/java/com/fuxi/wxutil/ImageAdapter.java
+===================================================================
+--- app/src/main/java/com/fuxi/wxutil/ImageAdapter.java	(date 0)
++++ app/src/main/java/com/fuxi/wxutil/ImageAdapter.java	(date 0)
+@@ -1,28 +0,0 @@
+-package com.fuxi.wxutil;
+-
+-import android.widget.ImageView;
+-
+-import com.bumptech.glide.DrawableTypeRequest;
+-import com.bumptech.glide.Glide;
+-import com.fuxi.main.R;
+-import com.taobao.weex.adapter.IWXImgLoaderAdapter;
+-import com.taobao.weex.common.WXImageStrategy;
+-import com.taobao.weex.dom.WXImageQuality;
+-
+-public class ImageAdapter implements IWXImgLoaderAdapter {
+-    @Override
+-    public void setImage(String url, ImageView imageView, WXImageQuality wxImageQuality, WXImageStrategy wxImageStrategy) {
+-        DrawableTypeRequest<String> loadRequest = Glide.with(imageView.getContext()).load(url);
+-        if (wxImageStrategy != null && wxImageStrategy.placeHolder != null) { // 如果设置有展位图，则展位图和加载失败都用展位图来显示
+-            int resId = 0;
+-            try {
+-                resId = R.drawable.class.getField(wxImageStrategy.placeHolder.replace("local:///", "")).getInt(null);
+-            } catch (Exception e) {
+-            }
+-            if (resId != 0) {
+-                loadRequest.placeholder(resId).error(resId);
+-            }
+-        }
+-        loadRequest.into(imageView);
+-    }
+-}
+\ No newline at end of file

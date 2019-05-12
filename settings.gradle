@@ -1,0 +1,2 @@
+include ':app', ':wxsdk'
+project(':wxsdk').projectDir = new File('sdk')

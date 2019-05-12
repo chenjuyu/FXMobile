@@ -1,0 +1,57 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    defaultConfig {
+        minSdkVersion 15
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE.txt'
+    }
+
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+
+
+    implementation 'com.android.support.constraint:constraint-layout:1.1.0'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+    //weex
+  //  implementation 'com.taobao.android:weex_sdk:0.20.0.2@aar'
+    implementation 'com.alibaba:fastjson:1.1.46.android'
+    implementation 'com.android.support:recyclerview-v7:26.0.0'
+    implementation 'com.android.support:support-v4:26.0.0'
+    implementation 'com.android.support:appcompat-v7:26.0.0'
+    implementation 'com.squareup.picasso:picasso:2.5.2'
+    implementation 'com.lzy.net:okgo:3.0.4'
+    implementation 'com.github.bumptech.glide:glide:3.7.0'
+    implementation 'com.squareup.okhttp3:okhttp:3.10.0'
+
+    api 'com.github.bumptech.glide:glide:4.2.0'
+
+
+
+    api project(':wxsdk')
+}
